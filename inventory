@@ -1,0 +1,171 @@
+// Filename: inventory_management.cpp
+
+#include <iostream>
+#include <unordered_map>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <limits>
+#include <chrono>
+#include <iomanip>
+#include <ctime>
+
+class Inventory {
+private:
+    std::unordered_map<std::string, int> items;
+    std::ofstream logFile;
+
+    void log(const std::string& message) {
+        auto now = std::chrono::system_clock::now();
+        auto now_c = std::chrono::system_clock::to_time_t(now);
+        logFile << std::put_time(std::localtime(&now_c), "%Y-%m-%d %X") << " - " << message << std::endl;
+    }
+
+public:
+    Inventory() {
+        logFile.open("inventory_log.txt", std::ios_base::app);
+        if (!logFile.is_open()) {
+            std::cerr << "Failed to open log file." << std::endl;
+        }
+    }
+
+    ~Inventory() {
+        if (logFile.is_open()) {
+            logFile.close();
+        }
+    }
+
+    void addItem(const std::string& itemName, int quantity = 1) {
+        items[itemName] += quantity;
+        std::cout << "Added " << quantity << " of " << itemName << " to inventory.\n";
+        log("Added " + std::to_string(quantity) + " of " + itemName + " to inventory.");
+    }
+
+    void removeItem(const std::string& itemName, int quantity = 1) {
+        auto it = items.find(itemName);
+        if (it != items.end()) {
+            if (it->second >= quantity) {
+                it->second -= quantity;
+                if (it->second == 0) {
+                    items.erase(it);
+                }
+                std::cout << "Removed " << quantity << " of " << itemName << " from inventory.\n";
+                log("Removed " + std::to_string(quantity) + " of " + itemName + " from inventory.");
+            } else {
+                std::cout << "Not enough " << itemName << " in inventory to remove.\n";
+            }
+        } else {
+            std::cout << itemName << " is not in the inventory.\n";
+        }
+    }
+
+    void viewInventory() const {
+        if (items.empty()) {
+            std::cout << "Inventory is empty.\n";
+        } else {
+            std::cout << "Inventory:\n";
+            for (const auto& item : items) {
+                std::cout << item.first << ": " << item.second << "\n";
+            }
+        }
+    }
+
+    void saveInventory(const std::string& filename) const {
+        std::ofstream file(filename);
+        if (file.is_open()) {
+            for (const auto& item : items) {
+                file << item.first << " " << item.second << "\n";
+            }
+            std::cout << "Inventory saved to " << filename << ".\n";
+            log("Inventory saved to " + filename);
+        } else {
+            std::cerr << "Error opening file for writing.\n";
+        }
+    }
+
+    void loadInventory(const std::string& filename) {
+        std::ifstream file(filename);
+        if (file.is_open()) {
+            items.clear();
+            std::string itemName;
+            int quantity;
+            while (file >> itemName >> quantity) {
+                items[itemName] = quantity;
+            }
+            std::cout << "Inventory loaded from " << filename << ".\n";
+            log("Inventory loaded from " + filename);
+        } else {
+            std::cerr << filename << " not found. Starting with an empty inventory.\n";
+        }
+    }
+};
+
+int getIntInput(const std::string& prompt) {
+    int value;
+    while (true) {
+        std::cout << prompt;
+        std::cin >> value;
+        if (std::cin.fail()) {
+            std::cin.clear(); // clear the fail state
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // discard invalid input
+            std::cout << "Invalid input. Please enter a valid integer.\n";
+        } else {
+            break;
+        }
+    }
+    return value;
+}
+
+int main() {
+    Inventory inventory;
+    std::string itemName;
+    int quantity;
+    std::string filename;
+
+    while (true) {
+        std::cout << "\nInventory Management\n";
+        std::cout << "1. Add Item\n";
+        std::cout << "2. Remove Item\n";
+        std::cout << "3. View Inventory\n";
+        std::cout << "4. Save Inventory\n";
+        std::cout << "5. Load Inventory\n";
+        std::cout << "6. Exit\n";
+        
+        int choice = getIntInput("Choose an option: ");
+        
+        switch (choice) {
+            case 1:
+                std::cout << "Enter item name: ";
+                std::cin >> itemName;
+                quantity = getIntInput("Enter quantity: ");
+                inventory.addItem(itemName, quantity);
+                break;
+            case 2:
+                std::cout << "Enter item name: ";
+                std::cin >> itemName;
+                quantity = getIntInput("Enter quantity: ");
+                inventory.removeItem(itemName, quantity);
+                break;
+            case 3:
+                inventory.viewInventory();
+                break;
+            case 4:
+                std::cout << "Enter filename to save: ";
+                std::cin >> filename;
+                inventory.saveInventory(filename);
+                break;
+            case 5:
+                std::cout << "Enter filename to load: ";
+                std::cin >> filename;
+                inventory.loadInventory(filename);
+                break;
+            case 6:
+                return 0;
+            default:
+                std::cout << "Invalid choice. Please try again.\n";
+                break;
+        }
+    }
+
+    return 0;
+}
